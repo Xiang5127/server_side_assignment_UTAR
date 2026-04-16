@@ -262,15 +262,15 @@ Then log in with that account and access:
 
 ### Landing Page
 
-![Landing Page](docs/screenshots/landing-page.png)
+![Landing Page](docs/landing-page.png)
 
 ### Register Page
 
-![Register Page](docs/screenshots/register-page.png)
+![Register Page](docs/register-page.png)
 
 ### Dashboard Page
 
-![Dashboard Page](docs/screenshots/dashboard-page.png)
+![Dashboard Page](docs/dashboard-page.png)
 
 ## Limitations / Future Improvements
 
