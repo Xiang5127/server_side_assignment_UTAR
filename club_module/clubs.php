@@ -4,35 +4,34 @@ require_once '../config/db.php';
 
 $user_id = $_SESSION['user_id'];
 
-// Get total count
-$stmt = $conn->prepare("SELECT COUNT(*) AS total FROM achievements WHERE user_id = ?");
+// Total count
+$stmt = $conn->prepare("SELECT COUNT(*) AS total FROM clubs WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
-$total_achievements = $stmt->get_result()->fetch_assoc()['total'];
+$total_clubs = $stmt->get_result()->fetch_assoc()['total'];
 $stmt->close();
 
-// Sorting logic
-$sort_by = $_GET['sort_by'] ?? 'date_desc';
-$order_sql = "ORDER BY date_received DESC, achievement_id DESC";
+// Sorting
+$sort_by = $_GET['sort_by'] ?? 'join_desc';
+$order_sql = "ORDER BY join_date DESC, club_id DESC";
 
-if ($sort_by === 'date_asc') {
-    $order_sql = "ORDER BY date_received ASC, achievement_id ASC";
-} elseif ($sort_by === 'title_asc') {
-    $order_sql = "ORDER BY title ASC";
-} elseif ($sort_by === 'type_asc') {
-    $order_sql = "ORDER BY achievement_type ASC";
+if ($sort_by === 'join_asc') {
+    $order_sql = "ORDER BY join_date ASC, club_id ASC";
+} elseif ($sort_by === 'name_asc') {
+    $order_sql = "ORDER BY club_name ASC";
+} elseif ($sort_by === 'role_asc') {
+    $order_sql = "ORDER BY role ASC, club_name ASC";
 }
 
-// Fetch achievements
-$query = "SELECT * FROM achievements WHERE user_id = ? " . $order_sql;
+$query = "SELECT * FROM clubs WHERE user_id = ? " . $order_sql;
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
-$achievements = [];
+$clubs = [];
 while ($row = $result->fetch_assoc()) {
-    $achievements[] = $row;
+    $clubs[] = $row;
 }
 $stmt->close();
 
@@ -42,96 +41,79 @@ include '../includes/nav.php';
 
 <div class="container">
     <?php if (isset($_GET['status'])): ?>
-        <?php if ($_GET['status'] === 'added'): ?>
-            <div class="success-box">
-                Achievement record successfully added.
-                <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
-            </div>
-        <?php elseif ($_GET['status'] === 'updated'): ?>
-            <div class="success-box">
-                Achievement record successfully updated.
-                <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
-            </div>
-        <?php elseif ($_GET['status'] === 'deleted'): ?>
-            <div class="success-box">
-                Achievement record successfully deleted.
-                <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
-            </div>
-        <?php elseif ($_GET['status'] === 'error'): ?>
-            <div class="error-box">
-                An error occurred while processing your request. Please try again.
-                <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
-            </div>
-        <?php endif; ?>
+        <div class="<?= strpos($_GET['status'], 'error') !== false ? 'error-box' : 'success-box' ?>">
+            <?= htmlspecialchars(ucfirst($_GET['status'])) ?> successfully.
+            <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
+        </div>
     <?php endif; ?>
 
-    <div class="hero-box achievement-hero">
+    <div class="hero-box club-hero">
         <div>
-            <h1>Achievement Tracker</h1>
-            <p>Record and manage your certificates, awards, medals, trophies, and recognitions in a polished portfolio-style view.</p>
+            <h1>Club Tracker</h1>
+            <p>Manage your memberships, affiliations, and leadership roles in a polished record space.</p>
         </div>
-        <a href="add_achievement.php" class="btn">+ Add Achievement</a>
+        <a href="add_club.php" class="btn">+ Add Club</a>
     </div>
 
-    <div class="achievement-toolbar">
-        <div class="achievement-summary-card">
-            <span class="achievement-summary-label">Total Achievements</span>
-            <span class="achievement-summary-number"><?= $total_achievements ?></span>
+    <div class="club-toolbar">
+        <div class="club-summary-card">
+            <span class="club-summary-label">Total Club Records</span>
+            <span class="club-summary-number"><?= $total_clubs ?></span>
         </div>
 
-        <form method="GET" action="achievements.php" class="achievement-sort-form">
+        <form method="GET" action="clubs.php" class="club-sort-form">
             <label for="sort_by">Sort By</label>
             <select name="sort_by" id="sort_by" onchange="this.form.submit()">
-                <option value="date_desc" <?= $sort_by === 'date_desc' ? 'selected' : '' ?>>Newest First</option>
-                <option value="date_asc" <?= $sort_by === 'date_asc' ? 'selected' : '' ?>>Oldest First</option>
-                <option value="title_asc" <?= $sort_by === 'title_asc' ? 'selected' : '' ?>>Title (A–Z)</option>
-                <option value="type_asc" <?= $sort_by === 'type_asc' ? 'selected' : '' ?>>Type (A–Z)</option>
+                <option value="join_desc" <?= $sort_by === 'join_desc' ? 'selected' : '' ?>>Newest First</option>
+                <option value="join_asc" <?= $sort_by === 'join_asc' ? 'selected' : '' ?>>Oldest First</option>
+                <option value="name_asc" <?= $sort_by === 'name_asc' ? 'selected' : '' ?>>Club Name (A–Z)</option>
+                <option value="role_asc" <?= $sort_by === 'role_asc' ? 'selected' : '' ?>>Role (A–Z)</option>
             </select>
         </form>
     </div>
 
-    <?php if (empty($achievements)): ?>
-        <div class="empty-achievement-state">
-            <h3>No achievements recorded yet</h3>
-            <p>Start building your portfolio by adding your first achievement record.</p>
-            <a href="add_achievement.php" class="btn">Add First Achievement</a>
+    <?php if (empty($clubs)): ?>
+        <div class="empty-club-state">
+            <h3>No club records yet</h3>
+            <p>Begin documenting your memberships and leadership roles by adding your first club record.</p>
+            <a href="add_club.php" class="btn">Add First Club</a>
         </div>
     <?php else: ?>
-        <div class="achievement-record-grid">
-            <?php foreach ($achievements as $row): ?>
-                <div class="achievement-record-card">
-                    <div class="achievement-record-top">
-                        <span class="achievement-type-badge"><?= htmlspecialchars($row['achievement_type']) ?></span>
-                        <div class="achievement-date-chip">
-                            <?= htmlspecialchars($row['date_received']) ?>
+        <div class="club-record-grid">
+            <?php foreach ($clubs as $row): ?>
+                <div class="club-record-card">
+                    <div class="club-record-top">
+                        <span class="club-role-badge"><?= htmlspecialchars($row['role']) ?></span>
+                        <div class="club-date-chip">
+                            Joined <?= htmlspecialchars($row['join_date']) ?>
                         </div>
                     </div>
 
-                    <h3 class="achievement-record-title"><?= htmlspecialchars($row['title']) ?></h3>
+                    <h3 class="club-record-title"><?= htmlspecialchars($row['club_name']) ?></h3>
 
-                    <div class="achievement-record-meta">
-                        <div class="achievement-meta-item">
-                            <span class="achievement-meta-label">Type</span>
-                            <span class="achievement-meta-value"><?= htmlspecialchars($row['achievement_type']) ?></span>
+                    <div class="club-record-meta">
+                        <div class="club-meta-item">
+                            <span class="club-meta-label">Position</span>
+                            <span class="club-meta-value"><?= htmlspecialchars($row['role']) ?></span>
                         </div>
-                        <div class="achievement-meta-item">
-                            <span class="achievement-meta-label">Organiser</span>
-                            <span class="achievement-meta-value"><?= htmlspecialchars($row['organiser'] ?: 'Not specified') ?></span>
+                        <div class="club-meta-item">
+                            <span class="club-meta-label">Membership Since</span>
+                            <span class="club-meta-value"><?= htmlspecialchars($row['join_date']) ?></span>
                         </div>
                     </div>
 
-                    <div class="achievement-remarks-box">
-                        <span class="achievement-meta-label">Remarks</span>
+                    <div class="club-remarks-box">
+                        <span class="club-meta-label">Remarks</span>
                         <p>
                             <?= !empty($row['remarks']) ? nl2br(htmlspecialchars($row['remarks'])) : 'No additional remarks provided.' ?>
                         </p>
                     </div>
 
-                    <div class="achievement-record-actions">
-                        <a class="achievement-action-btn achievement-action-edit" href="edit_achievement.php?id=<?= $row['achievement_id'] ?>">Edit</a>
-                        <a class="achievement-action-btn achievement-action-delete"
-                           href="delete_achievement.php?id=<?= $row['achievement_id'] ?>"
-                           onclick="return confirm('Delete this achievement?')">Delete</a>
+                    <div class="club-record-actions">
+                        <a class="club-action-btn club-action-edit" href="edit_club.php?id=<?= $row['club_id'] ?>">Edit</a>
+                        <a class="club-action-btn club-action-delete"
+                           href="delete_club.php?id=<?= $row['club_id'] ?>"
+                           onclick="return confirm('Delete this club record?')">Delete</a>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -140,7 +122,7 @@ include '../includes/nav.php';
 </div>
 
 <style>
-    .achievement-hero {
+    .club-hero {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -149,7 +131,7 @@ include '../includes/nav.php';
         margin-bottom: 28px;
     }
 
-    .achievement-toolbar {
+    .club-toolbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -158,7 +140,7 @@ include '../includes/nav.php';
         margin-bottom: 28px;
     }
 
-    .achievement-summary-card {
+    .club-summary-card {
         min-width: 220px;
         padding: 20px 24px;
         border-radius: 20px;
@@ -170,48 +152,48 @@ include '../includes/nav.php';
         gap: 8px;
     }
 
-    .achievement-summary-label {
+    .club-summary-label {
         color: var(--text-soft);
         font-size: 0.95rem;
         font-weight: 600;
     }
 
-    .achievement-summary-number {
+    .club-summary-number {
         font-size: 2.15rem;
         font-weight: 700;
         color: var(--primary-dark);
         line-height: 1;
     }
 
-    .achievement-sort-form {
+    .club-sort-form {
         display: flex;
-        flex-direction: column;
-        gap: 6px;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
-    .achievement-sort-form label {
+    .club-sort-form label {
         margin: 0;
         color: var(--text-soft);
         font-weight: 600;
-        font-size: 0.9rem;
     }
 
-    .achievement-sort-form select {
+    .club-sort-form select {
         width: auto;
-        min-width: 190px;
+        min-width: 180px;
         padding: 10px 12px;
         border-radius: 12px;
         border: 1px solid var(--border);
         background: rgba(255,255,255,0.92);
     }
 
-    .achievement-record-grid {
+    .club-record-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 24px;
     }
 
-    .achievement-record-card {
+    .club-record-card {
         padding: 24px;
         border-radius: 24px;
         background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(243,233,220,0.95));
@@ -223,12 +205,12 @@ include '../includes/nav.php';
         transition: all 0.25s ease;
     }
 
-    .achievement-record-card:hover {
+    .club-record-card:hover {
         transform: translateY(-4px);
         box-shadow: var(--shadow-luxury);
     }
 
-    .achievement-record-top {
+    .club-record-top {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -236,7 +218,7 @@ include '../includes/nav.php';
         flex-wrap: wrap;
     }
 
-    .achievement-type-badge {
+    .club-role-badge {
         display: inline-block;
         padding: 7px 12px;
         border-radius: 999px;
@@ -249,7 +231,7 @@ include '../includes/nav.php';
         text-transform: uppercase;
     }
 
-    .achievement-date-chip {
+    .club-date-chip {
         font-size: 0.82rem;
         color: var(--text-faint);
         background: rgba(255,255,255,0.55);
@@ -258,27 +240,27 @@ include '../includes/nav.php';
         padding: 7px 12px;
     }
 
-    .achievement-record-title {
+    .club-record-title {
         margin: 0;
         color: var(--primary-dark);
         font-size: 1.35rem;
         line-height: 1.3;
     }
 
-    .achievement-record-meta {
+    .club-record-meta {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 14px;
     }
 
-    .achievement-meta-item {
+    .club-meta-item {
         padding: 14px 16px;
         border-radius: 16px;
         background: rgba(255,255,255,0.55);
         border: 1px solid var(--border);
     }
 
-    .achievement-meta-label {
+    .club-meta-label {
         display: block;
         font-size: 0.78rem;
         font-weight: 700;
@@ -288,32 +270,32 @@ include '../includes/nav.php';
         margin-bottom: 6px;
     }
 
-    .achievement-meta-value {
+    .club-meta-value {
         color: var(--text-main);
         font-weight: 600;
     }
 
-    .achievement-remarks-box {
+    .club-remarks-box {
         padding: 16px 18px;
         border-radius: 18px;
         background: rgba(255,255,255,0.45);
         border: 1px solid var(--border);
     }
 
-    .achievement-remarks-box p {
+    .club-remarks-box p {
         margin: 0;
         color: var(--text-soft);
         line-height: 1.7;
     }
 
-    .achievement-record-actions {
+    .club-record-actions {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
         padding-top: 4px;
     }
 
-    .achievement-action-btn {
+    .club-action-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -324,27 +306,27 @@ include '../includes/nav.php';
         transition: all 0.25s ease;
     }
 
-    .achievement-action-edit {
+    .club-action-edit {
         background: rgba(255,255,255,0.72);
         color: var(--primary-dark);
         border: 1px solid var(--border);
     }
 
-    .achievement-action-edit:hover {
+    .club-action-edit:hover {
         background: rgba(255,255,255,0.96);
     }
 
-    .achievement-action-delete {
+    .club-action-delete {
         background: rgba(157, 93, 85, 0.10);
         color: #9d5d55;
         border: 1px solid rgba(157, 93, 85, 0.16);
     }
 
-    .achievement-action-delete:hover {
+    .club-action-delete:hover {
         background: rgba(157, 93, 85, 0.16);
     }
 
-    .empty-achievement-state {
+    .empty-club-state {
         padding: 48px 28px;
         text-align: center;
         border-radius: 24px;
@@ -353,11 +335,11 @@ include '../includes/nav.php';
         box-shadow: var(--shadow-soft);
     }
 
-    .empty-achievement-state h3 {
+    .empty-club-state h3 {
         margin-bottom: 10px;
     }
 
-    .empty-achievement-state p {
+    .empty-club-state p {
         margin-bottom: 18px;
     }
 
@@ -394,7 +376,7 @@ include '../includes/nav.php';
     }
 
     @media (max-width: 700px) {
-        .achievement-record-meta {
+        .club-record-meta {
             grid-template-columns: 1fr;
         }
     }

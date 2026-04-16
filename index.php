@@ -5,10 +5,10 @@
     <div class="hero-box">
         <h1>Student Co-curricular Management System</h1>
         <p>
-            A centralized platform for students to manage events, club memberships,
-            merit contribution hours, and achievements in a structured and elegant way.
+            A refined platform for recording events, club memberships, merit contribution hours,
+            and achievements in one organized and elegant space.
         </p>
-        <a class="btn" href="register.php">Get Started</a>
+        <a class="btn" href="/Assignment/register.php">Get Started</a>
     </div>
 </div>
 

@@ -6,6 +6,7 @@ CREATE TABLE users (
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'student',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -16,6 +17,7 @@ CREATE TABLE events (
     organiser VARCHAR(150),
     event_date DATE,
     location VARCHAR(150),
+    location_type VARCHAR(50),
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
@@ -55,3 +57,10 @@ CREATE TABLE achievements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
+
+-- Optional: example admin account
+-- Replace the password hash with a real hashed password if needed
+-- Better method: register normally first, then run UPDATE below
+
+-- Example:
+-- UPDATE users SET role = 'admin' WHERE email = 'your_email@example.com';

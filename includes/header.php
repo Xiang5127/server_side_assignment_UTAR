@@ -9,6 +9,6 @@ if (session_status() === PHP_SESSION_NONE) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Co-curricular Management System</title>
-    <link rel="stylesheet" href="/ASSIGNMENT/assets/style.css">
+    <link rel="stylesheet" href="/Assignment/assets/style.css">
 </head>
 <body>

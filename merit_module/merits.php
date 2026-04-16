@@ -4,35 +4,39 @@ require_once '../config/db.php';
 
 $user_id = $_SESSION['user_id'];
 
-// Get total count
-$stmt = $conn->prepare("SELECT COUNT(*) AS total FROM achievements WHERE user_id = ?");
+// Summary
+$stmt = $conn->prepare("SELECT COUNT(*) AS total, COALESCE(SUM(hours), 0) AS total_hours FROM merits WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
-$total_achievements = $stmt->get_result()->fetch_assoc()['total'];
+$summary = $stmt->get_result()->fetch_assoc();
+$total_records = $summary['total'];
+$total_hours = $summary['total_hours'];
 $stmt->close();
 
-// Sorting logic
-$sort_by = $_GET['sort_by'] ?? 'date_desc';
-$order_sql = "ORDER BY date_received DESC, achievement_id DESC";
+// Sorting
+$sort_by = $_GET['sort_by'] ?? 'start_desc';
+$order_sql = "ORDER BY start_date DESC, merit_id DESC";
 
-if ($sort_by === 'date_asc') {
-    $order_sql = "ORDER BY date_received ASC, achievement_id ASC";
-} elseif ($sort_by === 'title_asc') {
-    $order_sql = "ORDER BY title ASC";
-} elseif ($sort_by === 'type_asc') {
-    $order_sql = "ORDER BY achievement_type ASC";
+if ($sort_by === 'start_asc') {
+    $order_sql = "ORDER BY start_date ASC, merit_id ASC";
+} elseif ($sort_by === 'hours_desc') {
+    $order_sql = "ORDER BY hours DESC, start_date DESC";
+} elseif ($sort_by === 'hours_asc') {
+    $order_sql = "ORDER BY hours ASC, start_date ASC";
+} elseif ($sort_by === 'name_asc') {
+    $order_sql = "ORDER BY activity_name ASC";
 }
 
-// Fetch achievements
-$query = "SELECT * FROM achievements WHERE user_id = ? " . $order_sql;
+// Fetch records
+$query = "SELECT merit_id, activity_name, hours, start_date, end_date, remarks FROM merits WHERE user_id = ? " . $order_sql;
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
-$achievements = [];
+$merits = [];
 while ($row = $result->fetch_assoc()) {
-    $achievements[] = $row;
+    $merits[] = $row;
 }
 $stmt->close();
 
@@ -44,17 +48,17 @@ include '../includes/nav.php';
     <?php if (isset($_GET['status'])): ?>
         <?php if ($_GET['status'] === 'added'): ?>
             <div class="success-box">
-                Achievement record successfully added.
+                Merit record successfully added.
                 <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
             </div>
         <?php elseif ($_GET['status'] === 'updated'): ?>
             <div class="success-box">
-                Achievement record successfully updated.
+                Merit record successfully updated.
                 <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
             </div>
         <?php elseif ($_GET['status'] === 'deleted'): ?>
             <div class="success-box">
-                Achievement record successfully deleted.
+                Merit record successfully deleted.
                 <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
             </div>
         <?php elseif ($_GET['status'] === 'error'): ?>
@@ -65,73 +69,91 @@ include '../includes/nav.php';
         <?php endif; ?>
     <?php endif; ?>
 
-    <div class="hero-box achievement-hero">
+    <div class="hero-box merit-hero">
         <div>
-            <h1>Achievement Tracker</h1>
-            <p>Record and manage your certificates, awards, medals, trophies, and recognitions in a polished portfolio-style view.</p>
+            <h1>Merit Tracker</h1>
+            <p>Track your co-curricular contribution hours, service activities, and participation effort in an organized and elegant record view.</p>
         </div>
-        <a href="add_achievement.php" class="btn">+ Add Achievement</a>
+        <a href="add_merit.php" class="btn">+ Add Merit Record</a>
     </div>
 
-    <div class="achievement-toolbar">
-        <div class="achievement-summary-card">
-            <span class="achievement-summary-label">Total Achievements</span>
-            <span class="achievement-summary-number"><?= $total_achievements ?></span>
+    <div class="merit-toolbar">
+        <div class="merit-summary-grid">
+            <div class="merit-summary-card">
+                <span class="merit-summary-label">Total Merit Records</span>
+                <span class="merit-summary-number"><?= $total_records ?></span>
+            </div>
+
+            <div class="merit-summary-card">
+                <span class="merit-summary-label">Total Contribution Hours</span>
+                <span class="merit-summary-number"><?= htmlspecialchars(number_format((float)$total_hours, 2)) ?></span>
+            </div>
         </div>
 
-        <form method="GET" action="achievements.php" class="achievement-sort-form">
+        <form method="GET" action="merits.php" class="merit-sort-form">
             <label for="sort_by">Sort By</label>
             <select name="sort_by" id="sort_by" onchange="this.form.submit()">
-                <option value="date_desc" <?= $sort_by === 'date_desc' ? 'selected' : '' ?>>Newest First</option>
-                <option value="date_asc" <?= $sort_by === 'date_asc' ? 'selected' : '' ?>>Oldest First</option>
-                <option value="title_asc" <?= $sort_by === 'title_asc' ? 'selected' : '' ?>>Title (A–Z)</option>
-                <option value="type_asc" <?= $sort_by === 'type_asc' ? 'selected' : '' ?>>Type (A–Z)</option>
+                <option value="start_desc" <?= $sort_by === 'start_desc' ? 'selected' : '' ?>>Newest First</option>
+                <option value="start_asc" <?= $sort_by === 'start_asc' ? 'selected' : '' ?>>Oldest First</option>
+                <option value="hours_desc" <?= $sort_by === 'hours_desc' ? 'selected' : '' ?>>Highest Hours</option>
+                <option value="hours_asc" <?= $sort_by === 'hours_asc' ? 'selected' : '' ?>>Lowest Hours</option>
+                <option value="name_asc" <?= $sort_by === 'name_asc' ? 'selected' : '' ?>>Activity Name (A–Z)</option>
             </select>
         </form>
     </div>
 
-    <?php if (empty($achievements)): ?>
-        <div class="empty-achievement-state">
-            <h3>No achievements recorded yet</h3>
-            <p>Start building your portfolio by adding your first achievement record.</p>
-            <a href="add_achievement.php" class="btn">Add First Achievement</a>
+    <?php if (empty($merits)): ?>
+        <div class="empty-merit-state">
+            <h3>No merit records yet</h3>
+            <p>Start recording your contribution hours and service activities by adding your first merit record.</p>
+            <a href="add_merit.php" class="btn">Add First Record</a>
         </div>
     <?php else: ?>
-        <div class="achievement-record-grid">
-            <?php foreach ($achievements as $row): ?>
-                <div class="achievement-record-card">
-                    <div class="achievement-record-top">
-                        <span class="achievement-type-badge"><?= htmlspecialchars($row['achievement_type']) ?></span>
-                        <div class="achievement-date-chip">
-                            <?= htmlspecialchars($row['date_received']) ?>
+        <div class="merit-record-grid">
+            <?php foreach ($merits as $row): ?>
+                <div class="merit-record-card">
+                    <div class="merit-record-top">
+                        <span class="merit-hours-badge"><?= htmlspecialchars(number_format((float)$row['hours'], 2)) ?> hrs</span>
+                        <div class="merit-date-chip">
+                            <?= htmlspecialchars($row['start_date']) ?>
+                            <?php if (!empty($row['end_date'])): ?>
+                                &nbsp;–&nbsp;<?= htmlspecialchars($row['end_date']) ?>
+                            <?php endif; ?>
                         </div>
                     </div>
 
-                    <h3 class="achievement-record-title"><?= htmlspecialchars($row['title']) ?></h3>
+                    <h3 class="merit-record-title"><?= htmlspecialchars($row['activity_name']) ?></h3>
 
-                    <div class="achievement-record-meta">
-                        <div class="achievement-meta-item">
-                            <span class="achievement-meta-label">Type</span>
-                            <span class="achievement-meta-value"><?= htmlspecialchars($row['achievement_type']) ?></span>
+                    <div class="merit-record-meta">
+                        <div class="merit-meta-item">
+                            <span class="merit-meta-label">Contribution Hours</span>
+                            <span class="merit-meta-value"><?= htmlspecialchars(number_format((float)$row['hours'], 2)) ?> hours</span>
                         </div>
-                        <div class="achievement-meta-item">
-                            <span class="achievement-meta-label">Organiser</span>
-                            <span class="achievement-meta-value"><?= htmlspecialchars($row['organiser'] ?: 'Not specified') ?></span>
+                        <div class="merit-meta-item">
+                            <span class="merit-meta-label">Activity Period</span>
+                            <span class="merit-meta-value">
+                                <?= htmlspecialchars($row['start_date']) ?>
+                                <?php if (!empty($row['end_date'])): ?>
+                                    to <?= htmlspecialchars($row['end_date']) ?>
+                                <?php else: ?>
+                                    onward
+                                <?php endif; ?>
+                            </span>
                         </div>
                     </div>
 
-                    <div class="achievement-remarks-box">
-                        <span class="achievement-meta-label">Remarks</span>
+                    <div class="merit-remarks-box">
+                        <span class="merit-meta-label">Remarks</span>
                         <p>
                             <?= !empty($row['remarks']) ? nl2br(htmlspecialchars($row['remarks'])) : 'No additional remarks provided.' ?>
                         </p>
                     </div>
 
-                    <div class="achievement-record-actions">
-                        <a class="achievement-action-btn achievement-action-edit" href="edit_achievement.php?id=<?= $row['achievement_id'] ?>">Edit</a>
-                        <a class="achievement-action-btn achievement-action-delete"
-                           href="delete_achievement.php?id=<?= $row['achievement_id'] ?>"
-                           onclick="return confirm('Delete this achievement?')">Delete</a>
+                    <div class="merit-record-actions">
+                        <a class="merit-action-btn merit-action-edit" href="edit_merit.php?id=<?= $row['merit_id'] ?>">Edit</a>
+                        <a class="merit-action-btn merit-action-delete"
+                           href="delete_merit.php?id=<?= $row['merit_id'] ?>"
+                           onclick="return confirm('Delete this merit record?')">Delete</a>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -140,7 +162,7 @@ include '../includes/nav.php';
 </div>
 
 <style>
-    .achievement-hero {
+    .merit-hero {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -149,17 +171,23 @@ include '../includes/nav.php';
         margin-bottom: 28px;
     }
 
-    .achievement-toolbar {
+    .merit-toolbar {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        gap: 18px;
+        align-items: flex-end;
+        gap: 20px;
         flex-wrap: wrap;
         margin-bottom: 28px;
     }
 
-    .achievement-summary-card {
-        min-width: 220px;
+    .merit-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+        gap: 16px;
+        flex: 1;
+    }
+
+    .merit-summary-card {
         padding: 20px 24px;
         border-radius: 20px;
         background: linear-gradient(135deg, rgba(255,255,255,0.82), rgba(244,235,223,0.90));
@@ -170,33 +198,33 @@ include '../includes/nav.php';
         gap: 8px;
     }
 
-    .achievement-summary-label {
+    .merit-summary-label {
         color: var(--text-soft);
         font-size: 0.95rem;
         font-weight: 600;
     }
 
-    .achievement-summary-number {
+    .merit-summary-number {
         font-size: 2.15rem;
         font-weight: 700;
         color: var(--primary-dark);
         line-height: 1;
     }
 
-    .achievement-sort-form {
+    .merit-sort-form {
         display: flex;
         flex-direction: column;
         gap: 6px;
     }
 
-    .achievement-sort-form label {
+    .merit-sort-form label {
         margin: 0;
         color: var(--text-soft);
         font-weight: 600;
         font-size: 0.9rem;
     }
 
-    .achievement-sort-form select {
+    .merit-sort-form select {
         width: auto;
         min-width: 190px;
         padding: 10px 12px;
@@ -205,13 +233,13 @@ include '../includes/nav.php';
         background: rgba(255,255,255,0.92);
     }
 
-    .achievement-record-grid {
+    .merit-record-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 24px;
     }
 
-    .achievement-record-card {
+    .merit-record-card {
         padding: 24px;
         border-radius: 24px;
         background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(243,233,220,0.95));
@@ -223,12 +251,12 @@ include '../includes/nav.php';
         transition: all 0.25s ease;
     }
 
-    .achievement-record-card:hover {
+    .merit-record-card:hover {
         transform: translateY(-4px);
         box-shadow: var(--shadow-luxury);
     }
 
-    .achievement-record-top {
+    .merit-record-top {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -236,7 +264,7 @@ include '../includes/nav.php';
         flex-wrap: wrap;
     }
 
-    .achievement-type-badge {
+    .merit-hours-badge {
         display: inline-block;
         padding: 7px 12px;
         border-radius: 999px;
@@ -249,7 +277,7 @@ include '../includes/nav.php';
         text-transform: uppercase;
     }
 
-    .achievement-date-chip {
+    .merit-date-chip {
         font-size: 0.82rem;
         color: var(--text-faint);
         background: rgba(255,255,255,0.55);
@@ -258,27 +286,27 @@ include '../includes/nav.php';
         padding: 7px 12px;
     }
 
-    .achievement-record-title {
+    .merit-record-title {
         margin: 0;
         color: var(--primary-dark);
         font-size: 1.35rem;
         line-height: 1.3;
     }
 
-    .achievement-record-meta {
+    .merit-record-meta {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 14px;
     }
 
-    .achievement-meta-item {
+    .merit-meta-item {
         padding: 14px 16px;
         border-radius: 16px;
         background: rgba(255,255,255,0.55);
         border: 1px solid var(--border);
     }
 
-    .achievement-meta-label {
+    .merit-meta-label {
         display: block;
         font-size: 0.78rem;
         font-weight: 700;
@@ -288,32 +316,32 @@ include '../includes/nav.php';
         margin-bottom: 6px;
     }
 
-    .achievement-meta-value {
+    .merit-meta-value {
         color: var(--text-main);
         font-weight: 600;
     }
 
-    .achievement-remarks-box {
+    .merit-remarks-box {
         padding: 16px 18px;
         border-radius: 18px;
         background: rgba(255,255,255,0.45);
         border: 1px solid var(--border);
     }
 
-    .achievement-remarks-box p {
+    .merit-remarks-box p {
         margin: 0;
         color: var(--text-soft);
         line-height: 1.7;
     }
 
-    .achievement-record-actions {
+    .merit-record-actions {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
         padding-top: 4px;
     }
 
-    .achievement-action-btn {
+    .merit-action-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -324,27 +352,27 @@ include '../includes/nav.php';
         transition: all 0.25s ease;
     }
 
-    .achievement-action-edit {
+    .merit-action-edit {
         background: rgba(255,255,255,0.72);
         color: var(--primary-dark);
         border: 1px solid var(--border);
     }
 
-    .achievement-action-edit:hover {
+    .merit-action-edit:hover {
         background: rgba(255,255,255,0.96);
     }
 
-    .achievement-action-delete {
+    .merit-action-delete {
         background: rgba(157, 93, 85, 0.10);
         color: #9d5d55;
         border: 1px solid rgba(157, 93, 85, 0.16);
     }
 
-    .achievement-action-delete:hover {
+    .merit-action-delete:hover {
         background: rgba(157, 93, 85, 0.16);
     }
 
-    .empty-achievement-state {
+    .empty-merit-state {
         padding: 48px 28px;
         text-align: center;
         border-radius: 24px;
@@ -353,11 +381,11 @@ include '../includes/nav.php';
         box-shadow: var(--shadow-soft);
     }
 
-    .empty-achievement-state h3 {
+    .empty-merit-state h3 {
         margin-bottom: 10px;
     }
 
-    .empty-achievement-state p {
+    .empty-merit-state p {
         margin-bottom: 18px;
     }
 
@@ -393,8 +421,15 @@ include '../includes/nav.php';
         opacity: 1;
     }
 
+    @media (max-width: 900px) {
+        .merit-summary-grid {
+            grid-template-columns: 1fr;
+            width: 100%;
+        }
+    }
+
     @media (max-width: 700px) {
-        .achievement-record-meta {
+        .merit-record-meta {
             grid-template-columns: 1fr;
         }
     }
